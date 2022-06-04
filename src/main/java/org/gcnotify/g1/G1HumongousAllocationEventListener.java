@@ -6,6 +6,7 @@ import org.gcnotify.GCCause;
 import org.gcnotify.NotifyEvent;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -31,7 +32,7 @@ public class G1HumongousAllocationEventListener implements EventListener {
         if (!file.exists() || !file.isDirectory()) {
             throw new RuntimeException("目录不存在");
         }
-        File[] files = file.listFiles((file2, name) -> name.endsWith(dumpNameSuffix));
+        File[] files = file.listFiles((e, name) -> isDumpName(name));
         if (Objects.isNull(files) || 0 == files.length) {
             return dumpNameSuffix;
         }
@@ -48,18 +49,40 @@ public class G1HumongousAllocationEventListener implements EventListener {
         return (seq + 1) + dumpNameSuffix;
     }
 
+    private boolean isDumpName(String name) {
+        String dumpNameSuffix = "dump.hprof";
+        if (!name.endsWith(dumpNameSuffix)) {
+            return false;
+        }
+        if (name.equals(dumpNameSuffix)) {
+            return true;
+        }
+
+        try {
+            Integer.parseInt(name.replace(dumpNameSuffix, ""));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public void dump() {
+        Runtime rt = Runtime.getRuntime();
+        var pid = ProcessHandle.current().pid();
+        String dumpFileName = getDumpFileName(dumpFileDir);
+        try {
+            rt.exec(String.format("jmap -dump:live,format=b,file=%s%s %s", dumpFileDir, dumpFileName, pid));
+        } catch (IOException e) {
+            System.err.println("dump error" + dumpFileDir + dumpFileName);
+        }
+    }
+
     public void onEvent(NotifyEvent event) {
         if (GCCause._g1_humongous_allocation == event.getGcCause()) {
             System.out.println(event);
-            if (maxDumpCounter.getAndIncrement() <= 5) {
+            if (maxDumpCounter.getAndIncrement() <= maxDumpCount) {
                 System.out.println("start dump");
-                try {
-                    Runtime rt = Runtime.getRuntime();
-                    var pid = ProcessHandle.current().pid();
-                    rt.exec(String.format("jmap -dump:live,format=b,file=%s%s %s", dumpFileDir, getDumpFileName(dumpFileDir), pid));
-                } catch (Exception e) {
-
-                }
+                dump();
             }
         }
 

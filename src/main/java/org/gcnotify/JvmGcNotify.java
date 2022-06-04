@@ -1,7 +1,6 @@
 package org.gcnotify;
 
 import org.gcnotify.g1.G1GcNotify;
-import org.gcnotify.g1.G1HumongousAllocationEventListener;
 
 public class JvmGcNotify {
 

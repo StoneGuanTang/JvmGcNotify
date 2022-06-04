@@ -1,7 +1,5 @@
 package org.gcnotify;
 
-import org.gcnotify.EventListener;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
